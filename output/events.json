@@ -1,0 +1,861 @@
+{
+  "project_meta": {
+    "title": "MAVIS_Project",
+    "fps": 24,
+    "total_duration": 96.2,
+    "total_beats": 17,
+    "validation_status": "Passed"
+  },
+  "global_assets": {
+    "locations": [
+      "4th Street"
+    ],
+    "props": [
+      "Adam",
+      "The Rusty Anchor"
+    ],
+    "cast": [
+      "Julian",
+      "Lena",
+      "Silas"
+    ]
+  },
+  "timeline": [
+    {
+      "id": "SC_001",
+      "meta": {
+        "global_start": 0.0,
+        "global_end": 12.5,
+        "duration": 12.5,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "The rain drummed a relentless rhythm against the fogged windows of The Rusty Anchor, a small diner that smelled of burnt coffee and old vinyl.",
+        "active_cast": []
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [
+        {
+          "name": "The Rusty Anchor",
+          "type": "prop",
+          "role": "background"
+        }
+      ],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "The rain drummed a relentless rhythm against the fogged windows of The Rusty Anchor, a small diner that smelled of burnt coffee and old vinyl",
+          "duration": 12.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "rain",
+            "action": "drum",
+            "object": "rhythm"
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_001_01",
+          "visual_prompt": "High quality color cinematic shot of Rain drumming against windows, Rusty Anchor, small diner, burnt coffee, old vinyl, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Rainy Noir Ambience",
+              "volume": 0.39
+            },
+            "sfx": [
+              {
+                "name": "Rain",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Drumming",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Rustling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Sizzling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 12.5,
+            "global_start": 0.0,
+            "global_end": 12.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_002",
+      "meta": {
+        "global_start": 12.5,
+        "global_end": 20.5,
+        "duration": 8.0,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "Inside, three people sat at the corner booth, the air between them thick with unspoken tension.",
+        "active_cast": []
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "Inside, three people sat at the corner booth, the air between them thick with unspoken tension",
+          "duration": 8.0,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "people",
+            "action": "sit",
+            "object": null
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_002_01",
+          "visual_prompt": "High quality color cinematic shot of Three people sitting at corner booth, air thick with tension, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.35
+            },
+            "sfx": [
+              {
+                "name": "Whispers",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Shuffling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Footsteps",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 8.0,
+            "global_start": 12.5,
+            "global_end": 20.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_003",
+      "meta": {
+        "global_start": 20.5,
+        "global_end": 32.0,
+        "duration": 11.5,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "Silas took a slow sip of his black coffee, his gaze fixed on the briefcase. \"You're late, Julian. In this business, late usually means followed.\"",
+        "active_cast": [
+          "Silas"
+        ]
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "Silas took a slow sip of his black coffee, his gaze fixed on the briefcase",
+          "duration": 7.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Silas",
+            "action": "take",
+            "object": "sip"
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_003_01",
+          "visual_prompt": "High quality color cinematic shot of Silas sipping black coffee, gaze fixed on briefcase, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.37
+            },
+            "sfx": [
+              {
+                "name": "Sipping",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Whistling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              },
+              {
+                "name": "Rustling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 7.5,
+            "global_start": 20.5,
+            "global_end": 28.0
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Silas",
+          "text": "You're late, Julian. In this business, late usually means followed.",
+          "duration": 4.0,
+          "emotion": {
+            "label": "annoyance",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Silas",
+            "action": "is/are",
+            "object": "late"
+          },
+          "audio_prompt": "Silas, tone=annoyance, intensity=0.8",
+          "sub_scene_id": "SC_003_02",
+          "visual_prompt": "High quality color cinematic shot of Silas, annoyance expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 7.5,
+            "rel_end": 11.5,
+            "global_start": 28.0,
+            "global_end": 32.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_004",
+      "meta": {
+        "global_start": 32.0,
+        "global_end": 41.9,
+        "duration": 9.9,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "Julian swallowed hard, his Adam's apple bobbing. \"I took three different subways and walked through a department store. I'm clean, Silas. I swear.\"",
+        "active_cast": [
+          "Julian"
+        ]
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [
+        {
+          "name": "Adam",
+          "type": "prop",
+          "role": "background"
+        }
+      ],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "Julian swallowed hard, his Adam's apple bobbing",
+          "duration": 3.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.5
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "swallow",
+            "object": "bobbing"
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.5",
+          "sub_scene_id": "SC_004_01",
+          "visual_prompt": "High quality color cinematic shot of Julian swallowing hard, Adam's apple bobbing, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.4
+            },
+            "sfx": [
+              {
+                "name": "Swallowing",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 3.5,
+            "global_start": 32.0,
+            "global_end": 35.5
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Julian",
+          "text": "I took three different subways and walked through a department store. I'm clean, Silas. I swear.",
+          "duration": 6.4,
+          "emotion": {
+            "label": "desperate",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "take",
+            "object": "subways"
+          },
+          "audio_prompt": "Julian, tone=desperate, intensity=0.8",
+          "sub_scene_id": "SC_004_02",
+          "visual_prompt": "High quality color cinematic shot of Julian, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 3.5,
+            "rel_end": 9.9,
+            "global_start": 35.5,
+            "global_end": 41.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_005",
+      "meta": {
+        "global_start": 41.9,
+        "global_end": 59.4,
+        "duration": 17.5,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "Lena rolled her eyes, her fingers dancing across the screen of a tablet she had hidden under a napkin. \"He's mostly clean. You did trigger a geo-fence near the 4th Street station, but I scrambled the signal. You're welcome.\"",
+        "active_cast": [
+          "Lena"
+        ]
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [
+        {
+          "name": "4th Street",
+          "type": "location",
+          "role": "background"
+        }
+      ],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "Lena rolled her eyes, her fingers dancing across the screen of a tablet she had hidden under a napkin",
+          "duration": 9.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Lena",
+            "action": "roll",
+            "object": "eyes"
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_005_01",
+          "visual_prompt": "High quality color cinematic shot of Lena rolling eyes, fingers tapping tablet screen, tablet hidden under napkin, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.37
+            },
+            "sfx": [
+              {
+                "name": "Tapping",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 9.5,
+            "global_start": 41.9,
+            "global_end": 51.4
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Lena",
+          "text": "He's mostly clean. You did trigger a geo-fence near the 4th Street station, but I scrambled the signal. You're welcome.",
+          "duration": 8.0,
+          "emotion": {
+            "label": "desperate",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Lena",
+            "action": "is/are",
+            "object": "clean"
+          },
+          "audio_prompt": "Lena, tone=desperate, intensity=0.8",
+          "sub_scene_id": "SC_005_02",
+          "visual_prompt": "High quality color cinematic shot of Lena, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 9.5,
+            "rel_end": 17.5,
+            "global_start": 51.4,
+            "global_end": 59.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_006",
+      "meta": {
+        "global_start": 59.4,
+        "global_end": 70.4,
+        "duration": 11.0,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "\"See?\" Julian hissed, leaning in. \"Lena's got it covered. Can we just do this? I don't like the way the cook is looking at us.\"",
+        "active_cast": [
+          "Julian"
+        ]
+      },
+      "production": {
+        "lighting": "neutral lighting"
+      },
+      "entities": [],
+      "beats": [
+        {
+          "type": "dialogue",
+          "speaker": "Julian",
+          "text": "See?",
+          "duration": 1.0,
+          "emotion": {
+            "label": "neutral",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "react",
+            "object": null
+          },
+          "audio_prompt": "Julian, tone=neutral, intensity=0.8",
+          "sub_scene_id": "SC_006_01",
+          "visual_prompt": "High quality color cinematic shot of Julian, neutral expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 1.0,
+            "global_start": 59.4,
+            "global_end": 60.4
+          }
+        },
+        {
+          "type": "narration",
+          "text": "Julian hissed, leaning in",
+          "duration": 2.0,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "hiss",
+            "object": null
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_006_02",
+          "visual_prompt": "High quality color cinematic shot of Julian hissing, leaning in, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.36
+            },
+            "sfx": [
+              {
+                "name": "Hissing",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "CLOSE_UP",
+          "timing": {
+            "rel_start": 1.0,
+            "rel_end": 3.0,
+            "global_start": 60.4,
+            "global_end": 62.4
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Julian",
+          "text": "Lena's got it covered. Can we just do this? I don't like the way the cook is looking at us.",
+          "duration": 8.0,
+          "emotion": {
+            "label": "disapproval",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Lena",
+            "action": "get",
+            "object": null
+          },
+          "audio_prompt": "Julian, tone=disapproval, intensity=0.8",
+          "sub_scene_id": "SC_006_03",
+          "visual_prompt": "High quality color cinematic shot of Julian, disapproval expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 3.0,
+            "rel_end": 11.0,
+            "global_start": 62.4,
+            "global_end": 70.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_007",
+      "meta": {
+        "global_start": 70.4,
+        "global_end": 87.2,
+        "duration": 16.8,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "Silas glanced toward the counter where a man in a greasy apron was flipping burgers with more aggression than necessary. \"The cook is looking at you because you're sweating enough to fill a bucket. Lean back. Breathe.\"",
+        "active_cast": [
+          "Silas"
+        ]
+      },
+      "production": {
+        "lighting": "ominous lighting"
+      },
+      "entities": [],
+      "beats": [
+        {
+          "type": "narration",
+          "text": "Silas glanced toward the counter",
+          "duration": 2.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Silas",
+            "action": "glance",
+            "object": null
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_007_01",
+          "visual_prompt": "High quality color cinematic shot of Silas glancing at counter, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.36
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 2.5,
+            "global_start": 70.4,
+            "global_end": 72.9
+          }
+        },
+        {
+          "type": "narration",
+          "text": "where a man in a greasy apron was flipping burgers with more aggression than necessary",
+          "duration": 7.5,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "man",
+            "action": "flip",
+            "object": "burgers"
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.8",
+          "sub_scene_id": "SC_007_02",
+          "visual_prompt": "High quality color cinematic shot of Greasy apron man flipping burgers, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.36
+            },
+            "sfx": [
+              {
+                "name": "Sizzling",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 2.5,
+            "rel_end": 10.0,
+            "global_start": 72.9,
+            "global_end": 80.4
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Silas",
+          "text": "The cook is looking at you because you're sweating enough to fill a bucket. Lean back. Breathe.",
+          "duration": 6.8,
+          "emotion": {
+            "label": "neutral",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "cook",
+            "action": "look",
+            "object": null
+          },
+          "audio_prompt": "Silas, tone=neutral, intensity=0.8",
+          "sub_scene_id": "SC_007_03",
+          "visual_prompt": "High quality color cinematic shot of Silas, neutral expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 10.0,
+            "rel_end": 16.8,
+            "global_start": 80.4,
+            "global_end": 87.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "SC_008",
+      "meta": {
+        "global_start": 87.2,
+        "global_end": 96.2,
+        "duration": 9.0,
+        "transition_to_next": "Hard Cut"
+      },
+      "script": {
+        "text": "\"I can't breathe!\" Julian whispered. \"Do you have any idea what's in here? If the Board finds out I took these files\"",
+        "active_cast": [
+          "Julian"
+        ]
+      },
+      "production": {
+        "lighting": "desperate lighting"
+      },
+      "entities": [
+        {
+          "name": "Board",
+          "type": "organization",
+          "role": "background"
+        }
+      ],
+      "beats": [
+        {
+          "type": "dialogue",
+          "speaker": "Julian",
+          "text": "I can't breathe!",
+          "duration": 1.2,
+          "emotion": {
+            "label": "desperate",
+            "intensity": 0.8
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "breathe",
+            "object": null
+          },
+          "audio_prompt": "Julian, tone=desperate, intensity=0.8",
+          "sub_scene_id": "SC_008_01",
+          "visual_prompt": "High quality color cinematic shot of Julian, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 0.0,
+            "rel_end": 1.2,
+            "global_start": 87.2,
+            "global_end": 88.4
+          }
+        },
+        {
+          "type": "narration",
+          "text": "Julian whispered",
+          "duration": 1.0,
+          "emotion": {
+            "label": "ominous",
+            "intensity": 0.7
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "whisper",
+            "object": null
+          },
+          "audio_prompt": "Narrator, tone=ominous, intensity=0.7",
+          "sub_scene_id": "SC_008_02",
+          "visual_prompt": "High quality color cinematic shot of Julian whispering, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Dark Suspense Drone",
+              "volume": 0.36
+            },
+            "sfx": [
+              {
+                "name": "Soft Whispering",
+                "timing": {
+                  "start": 0.1,
+                  "end": 0.9
+                }
+              }
+            ]
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 1.2,
+            "rel_end": 2.2,
+            "global_start": 88.4,
+            "global_end": 89.4
+          }
+        },
+        {
+          "type": "dialogue",
+          "speaker": "Julian",
+          "text": "Do you have any idea what's in here? If the Board finds out I took these files",
+          "duration": 6.8,
+          "emotion": {
+            "label": "shaky",
+            "intensity": 0.5
+          },
+          "semantic": {
+            "subject": "Julian",
+            "action": "have",
+            "object": "idea"
+          },
+          "audio_prompt": "Julian, tone=shaky, intensity=0.5",
+          "sub_scene_id": "SC_008_03",
+          "visual_prompt": "High quality color cinematic shot of Julian, shaky expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "production": {
+            "bgm": {
+              "style": "Silence",
+              "volume": 0.0
+            },
+            "sfx": []
+          },
+          "shot_type": "MEDIUM",
+          "timing": {
+            "rel_start": 2.2,
+            "rel_end": 9.0,
+            "global_start": 89.4,
+            "global_end": 96.2
+          }
+        }
+      ]
+    }
+  ]
+}

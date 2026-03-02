@@ -1,0 +1,38 @@
+{
+  "Julian": {
+    "voice_model_id": "en_us_generic_julian",
+    "archetype": "Noir Character, Stoic",
+    "gender": "Male",
+    "clothing_style": "Brown Trench Coat",
+    "reference_image": "characters/julian.png",
+    "visual_details": {
+      "physical": "short black hair, blue eyes, clean shaven, 20s",
+      "outfit": "Brown Trench Coat",
+      "full_desc": "short black hair, blue eyes, clean shaven, 20s, wearing Brown Trench Coat"
+    }
+  },
+  "Lena": {
+    "voice_model_id": "en_us_generic_lena",
+    "archetype": "Noir Character, Nervous",
+    "gender": "Female",
+    "clothing_style": "White Blouse and High-Waisted Grey Trousers",
+    "reference_image": "characters/lena.png",
+    "visual_details": {
+      "physical": "red wavy hair, 20s",
+      "outfit": "White Blouse and High-Waisted Grey Trousers",
+      "full_desc": "red wavy hair, 20s, wearing White Blouse and High-Waisted Grey Trousers"
+    }
+  },
+  "Silas": {
+    "voice_model_id": "en_us_generic_silas",
+    "archetype": "Noir Character, Femme Fatale",
+    "gender": "Male",
+    "clothing_style": "Grey Suit",
+    "reference_image": "characters/silas.png",
+    "visual_details": {
+      "physical": "clean shaven face, sharp jawline, 20s",
+      "outfit": "Grey Suit",
+      "full_desc": "clean shaven face, sharp jawline, 20s, wearing Grey Suit"
+    }
+  }
+}

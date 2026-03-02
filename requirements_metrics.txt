@@ -1,0 +1,14 @@
+torch
+transformers
+torchaudio
+scipy
+pandas
+matplotlib
+seaborn
+bert-score
+jiwer
+openai-whisper
+openai-clip
+Pillow
+librosa
+soundfile

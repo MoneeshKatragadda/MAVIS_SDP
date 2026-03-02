@@ -1,0 +1,41 @@
+# Core ML / DL
+torch==2.7.1+cu118
+torchaudio==2.7.1+cu118
+torchvision==0.22.1+cu118
+transformers==4.46.1
+diffusers==0.36.0
+accelerate==1.12.0
+
+# NLP / LLM / Metrics
+spacy==3.7.2
+nltk==3.9.2
+bert-score==0.3.13
+llama-cpp-python==0.3.16
+
+# Audio / Speech
+TTS==0.22.0
+parler_tts==0.2.3
+openai-whisper==20250625
+jiwer==4.0.0
+librosa==0.10.0
+soundfile==0.13.1
+
+# Vision / Diffusion / Image
+pillow==11.3.0
+clip-anytorch==2.6.0
+
+# Data / Scientific
+numpy==1.22.0
+pandas==1.5.3
+scipy==1.11.4
+
+# Visualization
+matplotlib==3.8.4
+seaborn==0.13.2
+tqdm==4.67.3
+
+# Video
+moviepy==1.0.3
+
+# Utilities
+PyYAML==6.0.3

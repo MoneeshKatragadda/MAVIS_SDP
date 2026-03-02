@@ -1,0 +1,16 @@
+paths:
+  input_file: input/story.txt
+  output_file: output/events.json
+
+models:
+  spacy_model: en_core_web_lg
+  # Research-Grade Emotion Model (28 labels)
+  emotion_model: SamLowe/roberta-base-go_emotions
+
+  # Your Local LLM
+  llm_model_path: models/phi-2.Q4_K_M.gguf
+  llm_context_window: 2048
+  llm_gpu_layers: 20
+
+performance:
+  llm_scene_stride: 4
