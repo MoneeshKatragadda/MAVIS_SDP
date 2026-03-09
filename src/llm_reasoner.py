@@ -11,7 +11,7 @@ class LLMReasoner:
         self.llm = Llama(
             model_path=m["llm_model_path"],
             n_ctx=m.get("llm_context_window", 2048),
-            n_gpu_layers=min(m.get("llm_gpu_layers", 12), 20),
+            n_gpu_layers=m.get("llm_gpu_layers", -1),
             verbose=False
         )
         
@@ -267,9 +267,9 @@ Response:
             else:
                 char_dna = str(vis_data) # Fallback
 
-            # "High quality color cinematic shot of [Speaker], [Emotion], [Action]..."
+            # "High quality cinematic close-up of [Speaker] speaking, mouth open mid-sentence, visible teeth and lips moving, [Emotion] expression..."
             # Precise, consistent structure + Speaking indicator
-            prompt = f"High quality color cinematic shot of {speaker}, {emotion} expression, speaking with mouth slightly open, blurry background of {location} with dimly lit lights"
+            prompt = f"High quality cinematic close-up of {speaker} speaking, mouth open mid-sentence, visible teeth and lips moving, {emotion} expression,blurry background of {location} with dimly lit lights"
             return prompt
 
         # For Narration
@@ -448,10 +448,16 @@ Response:"""
         registry = {}
         for char in characters:
             meta = self.character_metadata.get(char, {"gender": "Unknown", "style": "Noir"})
+            vis = self.character_visuals.get(char, {})
+            physical = vis.get("physical", "")
+            
             registry[char] = {
                 "voice_model_id": f"en_us_generic_{char.lower()}",
                 "archetype": profiles.get(char, "Standard"),
                 "gender": meta.get("gender", "Unknown"),
-                "clothing_style": meta.get("style", "Noir Standard")
+                "clothing_style": meta.get("style", "Noir Standard"),
+                "visual_details": {
+                    "physical": physical
+                }
             }
         return registry

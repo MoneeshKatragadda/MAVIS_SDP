@@ -10,7 +10,7 @@ models:
   # Your Local LLM
   llm_model_path: models/phi-2.Q4_K_M.gguf
   llm_context_window: 2048
-  llm_gpu_layers: 20
+  llm_gpu_layers: -1
 
 performance:
   llm_scene_stride: 4

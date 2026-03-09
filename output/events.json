@@ -63,7 +63,7 @@
           "production": {
             "bgm": {
               "style": "Rainy Noir Ambience",
-              "volume": 0.39
+              "volume": 0.37
             },
             "sfx": [
               {
@@ -142,7 +142,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.35
+              "volume": 0.37
             },
             "sfx": [
               {
@@ -216,7 +216,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.37
+              "volume": 0.4
             },
             "sfx": [
               {
@@ -266,7 +266,7 @@
           },
           "audio_prompt": "Silas, tone=annoyance, intensity=0.8",
           "sub_scene_id": "SC_003_02",
-          "visual_prompt": "High quality color cinematic shot of Silas, annoyance expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Silas speaking, mouth open mid-sentence, visible teeth and lips moving, annoyance expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -328,7 +328,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.4
+              "volume": 0.36
             },
             "sfx": [
               {
@@ -364,7 +364,7 @@
           },
           "audio_prompt": "Julian, tone=desperate, intensity=0.8",
           "sub_scene_id": "SC_004_02",
-          "visual_prompt": "High quality color cinematic shot of Julian, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Julian speaking, mouth open mid-sentence, visible teeth and lips moving, desperate expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -426,7 +426,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.37
+              "volume": 0.39
             },
             "sfx": [
               {
@@ -462,7 +462,7 @@
           },
           "audio_prompt": "Lena, tone=desperate, intensity=0.8",
           "sub_scene_id": "SC_005_02",
-          "visual_prompt": "High quality color cinematic shot of Lena, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Lena speaking, mouth open mid-sentence, visible teeth and lips moving, desperate expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -515,7 +515,7 @@
           },
           "audio_prompt": "Julian, tone=neutral, intensity=0.8",
           "sub_scene_id": "SC_006_01",
-          "visual_prompt": "High quality color cinematic shot of Julian, neutral expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Julian speaking, mouth open mid-sentence, visible teeth and lips moving, neutral expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -586,7 +586,7 @@
           },
           "audio_prompt": "Julian, tone=disapproval, intensity=0.8",
           "sub_scene_id": "SC_006_03",
-          "visual_prompt": "High quality color cinematic shot of Julian, disapproval expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Julian speaking, mouth open mid-sentence, visible teeth and lips moving, disapproval expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -642,7 +642,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.36
+              "volume": 0.39
             },
             "sfx": []
           },
@@ -673,7 +673,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.36
+              "volume": 0.37
             },
             "sfx": [
               {
@@ -709,7 +709,7 @@
           },
           "audio_prompt": "Silas, tone=neutral, intensity=0.8",
           "sub_scene_id": "SC_007_03",
-          "visual_prompt": "High quality color cinematic shot of Silas, neutral expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Silas speaking, mouth open mid-sentence, visible teeth and lips moving, neutral expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -768,7 +768,7 @@
           },
           "audio_prompt": "Julian, tone=desperate, intensity=0.8",
           "sub_scene_id": "SC_008_01",
-          "visual_prompt": "High quality color cinematic shot of Julian, desperate expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Julian speaking, mouth open mid-sentence, visible teeth and lips moving, desperate expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",
@@ -803,7 +803,7 @@
           "production": {
             "bgm": {
               "style": "Dark Suspense Drone",
-              "volume": 0.36
+              "volume": 0.39
             },
             "sfx": [
               {
@@ -839,7 +839,7 @@
           },
           "audio_prompt": "Julian, tone=shaky, intensity=0.5",
           "sub_scene_id": "SC_008_03",
-          "visual_prompt": "High quality color cinematic shot of Julian, shaky expression, speaking with mouth slightly open, blurry background of a dimly lit noir setting with dimly lit lights",
+          "visual_prompt": "High quality cinematic close-up of Julian speaking, mouth open mid-sentence, visible teeth and lips moving, shaky expression,blurry background of a dimly lit noir setting with dimly lit lights",
           "production": {
             "bgm": {
               "style": "Silence",

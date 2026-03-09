@@ -7,6 +7,8 @@ import clip
 import numpy as np
 from PIL import Image
 import logging
+import torchvision.transforms.functional as F
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2, FasterRCNN_ResNet50_FPN_V2_Weights
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("MAVIS_CONSISTENCY")
@@ -16,19 +18,65 @@ def load_clip(device):
     logger.info(f"Loading CLIP (ViT-B/32) on {device}...")
     model, preprocess = clip.load("ViT-B/32", device=device)
     model.eval()
-    return model, preprocess
+    
+    logger.info(f"Loading Faster R-CNN on {device}...")
+    weights = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+    detection_model = fasterrcnn_resnet50_fpn_v2(weights=weights).to(device)
+    detection_model.eval()
+    
+    return model, preprocess, detection_model
+
+def crop_person(img, detection_model, device):
+    """
+    Detects the most confident person in the image and crops it.
+    If no person is detected, returns the original image.
+    """
+    img_tensor = F.to_tensor(img).unsqueeze(0).to(device)
+    
+    with torch.no_grad():
+        predictions = detection_model(img_tensor)[0]
+    
+    # Class 1 is 'person' in COCO dataset used by Faster R-CNN
+    person_indices = (predictions['labels'] == 1).nonzero(as_tuple=True)[0]
+    
+    if len(person_indices) == 0:
+        return img  # No person found, return original
+        
+    person_boxes = predictions['boxes'][person_indices]
+    person_scores = predictions['scores'][person_indices]
+    
+    # Get the bounding box with the highest confidence score
+    best_idx = torch.argmax(person_scores)
+    best_box = person_boxes[best_idx].cpu().numpy()
+    
+    # Crop the image (box format: [x1, y1, x2, y2])
+    # Add a small margin (e.g., 5%) to ensure we don't clip too tightly
+    margin_x = (best_box[2] - best_box[0]) * 0.05
+    margin_y = (best_box[3] - best_box[1]) * 0.05
+    
+    x1 = max(0, int(best_box[0] - margin_x))
+    y1 = max(0, int(best_box[1] - margin_y))
+    x2 = min(img.width, int(best_box[2] + margin_x))
+    y2 = min(img.height, int(best_box[3] + margin_y))
+    
+    cropped_img = img.crop((x1, y1, x2, y2))
+    return cropped_img
 
 
-def encode_image(model, preprocess, image_path, device):
+def encode_image(model, preprocess, detection_model, image_path, device):
     img = Image.open(image_path).convert("RGB")
-    tensor = preprocess(img).unsqueeze(0).to(device)
+    
+    # Crop to the person before preprocessing for CLIP
+    cropped_img = crop_person(img, detection_model, device)
+    
+    tensor = preprocess(cropped_img).unsqueeze(0).to(device)
     with torch.no_grad():
         features = model.encode_image(tensor)
         features = features / features.norm(dim=-1, keepdim=True)
     return features.cpu().numpy()[0]
 
 
-def compute_consistency(char_dir, model, preprocess, device):
+def compute_consistency(char_dir, model, preprocess, detection_model, device):
     results = {}
 
     for char_name in sorted(os.listdir(char_dir)):
@@ -54,7 +102,7 @@ def compute_consistency(char_dir, model, preprocess, device):
         for img_path in image_files:
             view_name = os.path.splitext(os.path.basename(img_path))[0]
             try:
-                embeddings[view_name] = encode_image(model, preprocess, img_path, device)
+                embeddings[view_name] = encode_image(model, preprocess, detection_model, img_path, device)
             except Exception as e:
                 logger.warning(f"    Skipping {view_name}: {e}")
 
@@ -158,10 +206,10 @@ def main():
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, preprocess = load_clip(device)
+    model, preprocess, detection_model = load_clip(device)
 
     logger.info(f"Scanning characters in: {args.char_dir}")
-    results = compute_consistency(args.char_dir, model, preprocess, device)
+    results = compute_consistency(args.char_dir, model, preprocess, detection_model, device)
 
     if not results:
         logger.error("No character data found. Check --char_dir path.")

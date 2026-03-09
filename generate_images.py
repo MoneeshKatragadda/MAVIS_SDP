@@ -1,25 +1,20 @@
 import os
-
-# Force online mode for Hugging Face
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 
 import json
 import torch
 import logging
-
-# Kernel auto-tuner — free speed win after first image
-torch.backends.cudnn.benchmark = True
-
 import gc
-import random
 import re
 from PIL import Image
+
 from diffusers import (
     StableDiffusionPipeline,
     LCMScheduler,
     DPMSolverMultistepScheduler,
 )
+
 from diffusers.utils import load_image
 
 try:
@@ -27,354 +22,310 @@ try:
 except ImportError:
     generate_cast = None
 
-# Configure Logging
+torch.backends.cudnn.benchmark = True
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger("MAVIS_IMG")
 
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
+# ------------------------------------------------
+# CONFIG
+# ------------------------------------------------
 def load_config():
     return {
         "model_id": "Lykon/dreamshaper-8",
         "ip_adapter_repo": "h94/IP-Adapter",
         "ip_adapter_subfolder": "models",
-        "ip_adapter_weight": "ip-adapter_sd15.bin",
+        "ip_adapter_weight": "ip-adapter-plus_sd15.bin",
         "lcm_lora_id": "latent-consistency/lcm-lora-sdv1-5",
+
         "output_dir": "output/images",
         "char_dir": "output/images/characters",
         "events_file": "output/events.json",
         "chars_file": "output/characters.json",
+
         "device": "cuda" if torch.cuda.is_available() else "cpu",
-        "steps": 4,
-        "guidance_scale": 1.5,
+
+        "steps": 15,
+        "guidance_scale": 2.0,
+
         "height": 512,
         "width": 512,
-        "ip_adapter_scale": 0.72,   # Raised from 0.6 for stronger identity
+
+        "ip_adapter_scale": 0.30,
     }
 
 
-# ---------------------------------------------------------------------------
-# Memory helpers
-# ---------------------------------------------------------------------------
+# ------------------------------------------------
+# MEMORY
+# ------------------------------------------------
 def flush_memory():
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
 
-# ---------------------------------------------------------------------------
-# Pipeline loader  (SD 1.5 + IP-Adapter-Plus + LCM-LoRA)
-# ---------------------------------------------------------------------------
+# ------------------------------------------------
+# PIPELINE
+# ------------------------------------------------
 def load_pipeline(cfg, use_ip_adapter=True):
-    logger.info(f"Loading SD 1.5 Pipeline: {cfg['model_id']}  |  IP-Adapter: {use_ip_adapter}")
-    try:
-        # 1. SD 1.5 pipeline  (~2.5 GB fp16)
-        pipe = StableDiffusionPipeline.from_pretrained(
-            cfg["model_id"],
-            torch_dtype=torch.float16 if cfg["device"] == "cuda" else torch.float32,
-            use_safetensors=True,
-            safety_checker=None,
-        )
 
-        # 2. VRAM Optimizations for 4GB GPUs
-        if cfg["device"] == "cuda":
-            pipe.to("cuda")
-            pipe.unet.to(memory_format=torch.channels_last)
-            
-            # Use VAE slicing/tiling instead of attention slicing. 
-            # This prevents memory spikes during image decoding without breaking IP-Adapter.
-            pipe.vae.enable_slicing()
-            pipe.vae.enable_tiling()
-            
-            # Note: We intentionally DO NOT call enable_attention_slicing() here.
-            # It overwrites IP-Adapter's custom cross-attention logic, causing the 'tuple' error.
+    logger.info(f"Loading pipeline {cfg['model_id']}")
 
-        # 3. Load IP-Adapter
-        if use_ip_adapter:
-            try:
-                logger.info(f"  Loading IP-Adapter...")
-                pipe.load_ip_adapter(
-                    cfg["ip_adapter_repo"],
-                    subfolder=cfg["ip_adapter_subfolder"],
-                    weight_name=cfg["ip_adapter_weight"],
-                )
-                pipe.set_ip_adapter_scale(cfg["ip_adapter_scale"])
-                logger.info("  IP-Adapter loaded successfully.")
-            except Exception as e:
-                logger.error(f"  IP-Adapter load FAILED: {e}")
-                use_ip_adapter = False
+    pipe = StableDiffusionPipeline.from_pretrained(
+        cfg["model_id"],
+        torch_dtype=torch.float16 if cfg["device"] == "cuda" else torch.float32,
+        use_safetensors=True,
+        safety_checker=None
+    )
 
-        # 4. Load LCM-LoRA
+    if cfg["device"] == "cuda":
+        pipe.to("cuda")
+        pipe.unet.to(memory_format=torch.channels_last)
+
+        pipe.vae.enable_slicing()
+        pipe.vae.enable_tiling()
+
+    if use_ip_adapter:
         try:
-            logger.info(f"  Loading LCM-LoRA: {cfg['lcm_lora_id']} ...")
-            pipe.load_lora_weights(cfg["lcm_lora_id"])
-            pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
-            logger.info("  LCM-LoRA loaded → 4 steps, CFG 1.5")
-        except Exception as e:
-            logger.warning(f"  LCM-LoRA failed: {e}. Falling back to DPM++ 25 steps.")
-            pipe.scheduler = DPMSolverMultistepScheduler.from_config(
-                pipe.scheduler.config,
-                use_karras_sigmas=True,
-                algorithm_type="sde-dpmsolver++",
+            logger.info("Loading IP Adapter")
+            pipe.load_ip_adapter(
+                cfg["ip_adapter_repo"],
+                subfolder=cfg["ip_adapter_subfolder"],
+                weight_name=cfg["ip_adapter_weight"],
             )
-            cfg["steps"] = 25
-            cfg["guidance_scale"] = 7.5
 
-        logger.info(
-            f"Pipeline ready — steps: {cfg['steps']}, CFG: {cfg['guidance_scale']}, "
-            f"res: {cfg['width']}×{cfg['height']}, IP-Adapter: {use_ip_adapter}"
+            pipe.set_ip_adapter_scale(cfg["ip_adapter_scale"])
+
+        except Exception as e:
+            logger.warning(f"IP adapter failed {e}")
+            use_ip_adapter = False
+
+    try:
+
+        logger.info("Loading LCM LoRA")
+
+        pipe.load_lora_weights(cfg["lcm_lora_id"])
+
+        pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+
+    except:
+
+        logger.warning("LCM failed, switching to DPM++")
+
+        pipe.scheduler = DPMSolverMultistepScheduler.from_config(
+            pipe.scheduler.config,
+            use_karras_sigmas=True,
+            algorithm_type="sde-dpmsolver++",
         )
-        return pipe, use_ip_adapter
 
-    except Exception as e:
-        logger.error(f"Failed to load pipeline: {e}")
-        return None, False
+        cfg["steps"] = 25
+        cfg["guidance_scale"] = 7.5
+
+    return pipe, use_ip_adapter
 
 
-# ---------------------------------------------------------------------------
-# Character DNA helpers
-# ---------------------------------------------------------------------------
+# ------------------------------------------------
+# CHARACTER DNA
+# ------------------------------------------------
 def load_dna_map(cfg):
-    """Build {char_name: prompt_fragment} from characters.json."""
+
     if not os.path.exists(cfg["chars_file"]):
         return {}
+
     with open(cfg["chars_file"], "r", encoding="utf-8") as f:
         registry = json.load(f)
-    char_prompts = {}
+
+    dna = {}
+
     for char_name, details in registry.items():
-        vis = details.get("visual_details", {})
-        physical = vis.get("physical", "") if isinstance(vis, dict) else ""
-        outfit = details.get("clothing_style", "casual clothes")
-        # Keep DNA short: outfit is the most visually distinctive part.
-        # Long DNA fragments push the combined prompt over CLIP's 77 token limit.
-        short_dna = f"wearing {outfit}"
-        if physical:
-            # Append only the first descriptive phrase (e.g. "short black hair, blue eyes")
-            first_trait = physical.split(",")[0].strip()
-            short_dna += f", {first_trait}"
-        char_prompts[char_name] = short_dna
-    return char_prompts
+
+        outfit = details.get("clothing_style", "")
+
+        physical = details.get("visual_details", {}).get("physical", "")
+
+        dna[char_name] = f"wearing {outfit}, {physical}".strip(", ")
+
+    return dna
 
 
+# ------------------------------------------------
+# CHARACTER IMAGES
+# ------------------------------------------------
 def get_character_images(dna_map, char_dir):
-    """
-    Loads ALL available view images per character into a dict:
-      { char_name: { view_key: PIL.Image } }
-    """
+
     char_images = {}
-    if not os.path.exists(char_dir):
-        return char_images
 
     for char_name in dna_map.keys():
-        safe_name = char_name.replace(" ", "_")
-        char_subdir = os.path.join(char_dir, safe_name)
+
+        safe = char_name.replace(" ", "_")
+
+        char_path = os.path.join(char_dir, safe)
+
+        if not os.path.exists(char_path):
+            continue
+
         views = {}
 
-        if os.path.exists(char_subdir) and os.path.isdir(char_subdir):
-            for fname in sorted(os.listdir(char_subdir)):
-                if fname.lower().endswith((".png", ".jpg", ".jpeg")):
-                    fpath = os.path.join(char_subdir, fname)
-                    if os.path.getsize(fpath) == 0:
-                        continue
-                    # Extract view key: "julian_waist_front.png" → "waist_front"
-                    stem = os.path.splitext(fname)[0]
-                    prefix = char_name.lower().replace(" ", "_") + "_"
-                    view_key = stem[len(prefix):] if stem.lower().startswith(prefix) else stem
-                    try:
-                        views[view_key] = load_image(fpath)
-                    except Exception as e:
-                        logger.warning(f"  Failed to load {fname}: {e}")
+        for f in os.listdir(char_path):
+
+            if f.endswith(".png") or f.endswith(".jpg"):
+
+                path = os.path.join(char_path, f)
+
+                if os.path.getsize(path) == 0:
+                    continue
+
+                try:
+                    views[f] = load_image(path)
+                except:
+                    pass
 
         if views:
             char_images[char_name] = views
-            logger.info(f"  Loaded {len(views)} views for '{char_name}': {list(views.keys())}")
-        else:
-            logger.warning(f"  No reference images found for '{char_name}'")
 
     return char_images
 
 
-# Shot-type → preferred primary + secondary reference views
-SHOT_VIEW_PRIORITY = {
-    "CLOSE_UP":    ["close_up_face", "waist_front", "three_quarter"],
-    "MEDIUM":      ["three_quarter", "waist_front", "waist_side"],
-    "WIDE":        ["full_front",    "waist_front", "seated_front"],
-    "ESTABLISHING":["full_front",    "waist_front"],
-}
+# ------------------------------------------------
+# IDENTITY SEED
+# ------------------------------------------------
+def build_seed(shot_id, char_name=None):
+
+    scene_seed = abs(hash(shot_id)) % (2**32)
+
+    if char_name:
+
+        char_seed = abs(hash(char_name)) % (2**32)
+
+        return (scene_seed ^ char_seed) % (2**32)
+
+    return scene_seed
 
 
-def select_reference_images(char_name, char_views, shot_type, visual_prompt):
-    """
-    Returns up to 2 PIL reference images for IP-Adapter, chosen based on shot type
-    and contextual cues in the visual prompt (e.g. 'sitting' → prefer seated_front).
-    """
-    if not char_views:
-        return []
-
-    priority = list(SHOT_VIEW_PRIORITY.get(shot_type, ["waist_front", "three_quarter"]))
-
-    # Context-aware override: if prompt mentions sitting/seated, prefer seated view
-    prompt_lower = visual_prompt.lower()
-    if any(kw in prompt_lower for kw in ["sitting", "seated", "sit"]):
-        priority = ["seated_front"] + [v for v in priority if v != "seated_front"]
-
-    selected = []
-    for view in priority:
-        if view in char_views and len(selected) < 2:
-            selected.append(char_views[view])
-
-    # Fill up to 2 from any available view if priority list exhausted
-    for view, img in char_views.items():
-        if len(selected) >= 2:
-            break
-        if img not in selected:
-            selected.append(img)
-
-    return selected
-
-
-
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
+# ------------------------------------------------
+# MAIN
+# ------------------------------------------------
 def generate_images(events_path="output/events.json"):
+
     cfg = load_config()
-    cfg["events_file"] = events_path
 
     os.makedirs(cfg["output_dir"], exist_ok=True)
+
     os.makedirs(cfg["char_dir"], exist_ok=True)
 
-    # 0. Cast generation
     if generate_cast:
-        all_views = [
-                    "waist_front", "waist_back", "waist_side", "full_front",
-                    "close_up_face", "seated_front", "three_quarter", "full_back"
-                ]
-        cast_needed = False
-        if os.path.exists(cfg["chars_file"]):
-            with open(cfg["chars_file"], "r", encoding="utf-8") as f:
-                registry = json.load(f)
-            for char_name in registry.keys():
-                char_subdir = os.path.join(cfg["char_dir"], char_name.replace(" ", "_"))
-                missing = [v for v in all_views if not os.path.exists(os.path.join(char_subdir, f"{char_name.lower()}_{v}.png"))]
-                if missing:
-                    cast_needed = True
-                    break
-        else:
-            cast_needed = True
+        logger.info("Ensuring character images exist")
+        generate_cast()
 
-        if cast_needed:
-            logger.info("--- TRIGGERING CAST GENERATION ---")
-            generate_cast()
-            flush_memory()
-        else:
-            logger.info("--- SKIPPING CAST GENERATION: All character images already exist ---")
-    else:
-        logger.warning("Could not import generate_cast.")
+    with open(events_path, "r", encoding="utf-8") as f:
 
-    # 1. Load events
-    try:
-        with open(cfg["events_file"], "r", encoding="utf-8") as f:
-            data = json.load(f)
-            timeline = data.get("timeline", [])
-    except FileNotFoundError:
-        return logger.error(f"Events file not found at {events_path}")
+        data = json.load(f)
 
-    # 2. Load character DNA + reference images
+        timeline = data["timeline"]
+
     dna_map = load_dna_map(cfg)
-    char_images_map = get_character_images(dna_map, cfg["char_dir"])
-    should_use_ip_adapter = len(char_images_map) > 0
 
-    # 3. Load SD 1.5 pipeline
-    pipe, ip_adapter_active = load_pipeline(cfg, use_ip_adapter=should_use_ip_adapter)
-    if not pipe: return
+    char_images = get_character_images(dna_map, cfg["char_dir"])
 
-    # 4. Scene generation loop
-    logger.info(f"--- STARTING SCENE GENERATION (Steps: {cfg['steps']} | CFG: {cfg['guidance_scale']}) ---")
+    use_ip = len(char_images) > 0
 
-    CINEMATIC_SHOTS = {"CLOSE_UP", "MEDIUM", "WIDE", "ESTABLISHING"}
-    VIEWS = ["front view", "side view", "three quarter view", "low angle shot", "high angle shot", "cinematic angle"]
-    VIEW_KEYWORDS = ["view", "angle", "shot", "profile", "close-up", "full body", "looking at"]
+    pipe, ip_active = load_pipeline(cfg, use_ip)
 
     for scene in timeline:
-        for beat in scene.get("beats", []):
-            shot_type = beat.get("shot_type", "NONE")
-            if shot_type not in CINEMATIC_SHOTS or "visual_prompt" not in beat: continue
 
-            shot_id = beat.get("sub_scene_id", "unknown")
-            filepath = os.path.join(cfg["output_dir"], f"{shot_id}.png")
+        for beat in scene["beats"]:
 
-            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                logger.info(f"Skipping {shot_id} (already exists)")
+            if "visual_prompt" not in beat:
                 continue
 
-            final_prompt = beat["visual_prompt"]
-            present_char_images = []
+            shot_id = beat.get("sub_scene_id", "scene")
+
+            shot_type = beat.get("shot_type", "MEDIUM")
+
+            filepath = os.path.join(cfg["output_dir"], f"{shot_id}.png")
+
+            if os.path.exists(filepath):
+                continue
+
+            base_prompt = beat["visual_prompt"]
+
+            present_chars = []
+
+            char_refs = []
+
+            active_dna = []
 
             for name, dna in dna_map.items():
-                if name in final_prompt:
-                    pattern = re.compile(rf"\b{re.escape(name)}\b", re.IGNORECASE)
-                    final_prompt = pattern.sub(f"{name} ({dna})", final_prompt)
-                    # Smart view selection per shot type
-                    if name in char_images_map:
-                        refs = select_reference_images(
-                            name, char_images_map[name], shot_type, final_prompt
-                        )
-                        present_char_images.extend(refs)
 
+                if name in base_prompt:
 
-            shot_label = shot_type.lower().replace("_", " ")
-            if shot_label not in final_prompt.lower():
-                final_prompt = f"{shot_label}, {final_prompt}"
+                    present_chars.append(name)
 
-            if not any(k in final_prompt.lower() for k in VIEW_KEYWORDS) and present_char_images:
-                # Add cinematic angles
-                final_prompt += f", {random.choice(VIEWS + ['three quarter view', 'cinematic angle'] * 2)}"
+                    # We don't inline replacing name with DNA to keep action words prominent
+                    active_dna.append(f"{name} is {dna}")
 
-            # --- Prompt Engineering for IP-Adapter ---
-            if shot_type in {"CLOSE_UP", "MEDIUM"} and present_char_images:
-                final_prompt += ", detailed face, sharp eyes"
+                    if name in char_images:
+                        char_refs.extend(list(char_images[name].values()))
 
-            # Keep quality suffix short to stay within CLIP's 77-token limit
-            final_prompt += ", masterpiece, cinematic lighting, ultra-detailed"
-            neg_prompt = "drawing, painting, illustration, cartoon, 3d render, low quality, distorted, bad anatomy, bad hands, mutated, poorly drawn face, ugly, disfigured, text, watermark, (solid background:1.5), studio background, simple background"
-
-            logger.info(f"Generating {shot_id} [{shot_type}] char_refs: {len(present_char_images)}")
+            # Use prompt weighting: strongly emphasize action/bg, isolate DNA
+            prompt = f"({shot_type.lower()} shot of {base_prompt.strip()}:1.3)."
             
-            try:
-                generator = torch.Generator(device="cpu").manual_seed(int(hash(shot_id) % (2 ** 32)))
-                kwargs = {
-                    "prompt": final_prompt,
-                    "negative_prompt": neg_prompt,
-                    "height": cfg["height"],
-                    "width": cfg["width"],
-                    "num_inference_steps": cfg["steps"],
-                    "guidance_scale": cfg["guidance_scale"],
-                    "generator": generator,
-                }
+            if active_dna:
+                prompt += f" Characters description: {', '.join(active_dna)}."
 
-                if ip_adapter_active:
-                    if present_char_images:
-                        pipe.set_ip_adapter_scale(cfg["ip_adapter_scale"])
-                        # ip-adapter_sd15.bin supports ONE image only — use the best (primary) view
-                        kwargs["ip_adapter_image"] = present_char_images[0]
-                    else:
-                        pipe.set_ip_adapter_scale(0.0)
-                        kwargs["ip_adapter_image"] = Image.new("RGB", (224, 224), (0, 0, 0))
+            prompt += " cinematic lighting, ultra detailed, masterpiece, vivid colors, detailed background"
 
-                image = pipe(**kwargs).images[0]
-                image.save(filepath)
-                logger.info(f"  > SAVED: {shot_id}.png")
+            negative = "blurry, low quality, deformed, mutated, missing objects, ignoring prompt, plain background, empty background, bad anatomy, cartoon, illustration, 3d render, monochrome"
 
-            except Exception as e:
-                logger.error(f"  Error generating {shot_id}: {e}")
+            logger.info(f"Generating {shot_id}")
 
-    logger.info("=== Scene Generation Complete ===")
+            seed = build_seed(shot_id, present_chars[0] if present_chars else None)
+
+            generator = torch.Generator(device=cfg["device"]).manual_seed(seed)
+
+            kwargs = dict(
+                prompt=prompt,
+                negative_prompt=negative,
+                height=cfg["height"],
+                width=cfg["width"],
+                num_inference_steps=cfg["steps"],
+                guidance_scale=cfg["guidance_scale"],
+                generator=generator,
+            )
+
+            if ip_active:
+
+                # Global IP-Adapter overwrites the image with one concept.
+                # If there are multiple characters, we disable it and rely on the text DNA to draw a group.
+                if shot_type in ["CLOSE_UP", "MEDIUM"] and len(present_chars) == 1 and char_refs:
+
+                    pipe.set_ip_adapter_scale(cfg["ip_adapter_scale"])
+
+                    # Wrap in a list because we have 1 IP-Adapter but multiple images for it
+                    kwargs["ip_adapter_image"] = [char_refs]
+
+                else:
+
+                    pipe.set_ip_adapter_scale(0.0)
+
+                    kwargs["ip_adapter_image"] = [Image.new("RGB", (224,224))]
+
+            image = pipe(**kwargs).images[0]
+
+            image.save(filepath)
+
+            logger.info(f"Saved {shot_id}")
+
     flush_memory()
 
+    logger.info("Generation complete")
+
+
 if __name__ == "__main__":
+
     import sys
+
     path = sys.argv[1] if len(sys.argv) > 1 else "output/events.json"
+
     generate_images(path)

@@ -17,7 +17,7 @@ def load_config():
         "char_dir": "output/images/characters",
         "chars_file": "output/characters.json",
         "device": "cuda" if torch.cuda.is_available() else "cpu",
-        "steps": 40,           # More steps → sharper, more consistent reference images
+        "steps": 20,           # More steps → sharper, more consistent reference images
         "guidance_scale": 7.5, # Stronger adherence to prompt
         "height": 768,
         "width": 768
@@ -118,23 +118,22 @@ def generate_cast():
             
         # Reordered prompt: Outfit BEFORE Physical to anchor clothing color and reduce bleeding from other features (like "green eyes")
         # Added quality tokens
-        quality_tokens = "masterpiece, best quality, high resolution, photorealistic, sharp focus, realistic skin texture, highly detailed face"
+        quality_tokens = "extremely detailed, high resolution, photorealistic, sharp focus"
         
         neg_prompt = (
-            "drawing, painting, illustration, anime, cartoon, 3d render, doll, "
-            "plastic, blur, low quality, distorted, bad anatomy, extra limbs, text, watermark"
+            "drawing, painting, cartoon, 3d render, low quality, bad anatomy, deformed, mutated, text, watermark"
         )
 
         # Updated strict prompt instructions (Framing without style bias)
         views = {
-            "waist_front":    "Upper body medium shot, from waist up only, detailed torso and face, looking at camera",
-            "waist_back":     "Upper body medium shot, from waist up only, back view, from behind, back of head, facing away, no face",
-            "waist_side":     "Upper body medium shot, side profile view, from waist up only, looking sideways",
-            "full_front":     "extreme wide full body shot, standing pose, displaying entire body from head to shoes, feet visible, front view, far away",
-            "close_up_face":  "extreme close up portrait, face only, headshot, sharp facial features, detailed eyes, nose, lips, looking at camera",
-            "seated_front":   "medium wide shot, seated on chair, sitting down, full seated body visible from head to knees, relaxed pose, front view",
-            "three_quarter":  "upper body three quarter view, 45 degree angle, off to side, looking slightly away from camera, from waist up",
-            "full_back":      "extreme wide full body shot, standing pose, entire body from head to shoes, back view, facing away, no face visible",
+            "waist_front":    "medium shot, waist up, front view, looking at camera",
+            "waist_back":     "medium shot, waist up, back view, from behind, facing away",
+            "waist_side":     "medium shot, waist up, profile view, looking side",
+            "full_front":     "full body shot, standing, head to toe, front view",
+            "close_up_face":  "close up portrait, headshot, detailed face and eyes, looking at camera",
+            "seated_front":   "medium wide shot, sitting on chair, relaxed, front view",
+            "three_quarter":  "medium shot, waist up, three quarter view, looking slightly away",
+            "full_back":      "full body shot, standing, head to toe, back view, facing away",
         }
 
         # Base seed for the character
@@ -142,7 +141,7 @@ def generate_cast():
         logger.info(f"  Using base seed: {seed}")
         
         # Base Negative Prompt
-        base_neg = neg_prompt + ", close up, extremes close up, macro, headshot, face shot, portrait, cropped, zoom, shoulders only, neck only, hat, cowboy hat, headwear"
+        base_neg = neg_prompt + ", close up, cropped, missing limbs"
 
         for view_key, view_prompt_prefix in views.items():
             view_filename = f"{char_name.lower()}_{view_key}.png"
@@ -170,12 +169,8 @@ def generate_cast():
             generator = torch.Generator(device=cfg["device"]).manual_seed(seed)
             
             # Construct the full prompt - framing FIRST
-            # Prompt Structure: [View], [Character], [Outfit], [Physical], [Style/Lighting]
-            # Added weighting to outfit to prevent color bleeding
-            full_prompt = (
-                f"{view_prompt_prefix}, {char_name}, (wearing {outfit}:1.3), {physical}, "
-                f"{quality_tokens}, neutral background, studio lighting, 8k, ultra detailed, sharp focus, real skin texture"
-            )
+            # Prompt Structure: [View], [Character], [Outfit], [Physical], [Style]
+            full_prompt = f"{view_prompt_prefix}, {char_name}, wearing {outfit}, {physical}, {quality_tokens}, neutral studio background"
             
             # --- SKIP CHECK: Skip individual view if it already exists ---
             if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
@@ -190,7 +185,7 @@ def generate_cast():
                     negative_prompt=current_neg_prompt, # Use improved neg prompt
                     height=cfg["height"],
                     width=cfg["width"],
-                    num_inference_steps=30, # Increased steps for better quality
+                    num_inference_steps=20, # Increased steps for better quality
                     guidance_scale=cfg["guidance_scale"],
                     generator=generator
                 ).images[0]

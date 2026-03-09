@@ -165,9 +165,52 @@ def compute_visual_coverage(visual_prompt, beat_text):
 # --- VISION METRICS ---
 import clip
 from PIL import Image
+import torchvision.transforms.functional as F
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2, FasterRCNN_ResNet50_FPN_V2_Weights
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
+
+logger.info(f"Loading Faster R-CNN on {device}...")
+weights = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+detection_model = fasterrcnn_resnet50_fpn_v2(weights=weights).to(device)
+detection_model.eval()
+
+def crop_person(img, detection_model, device):
+    """
+    Detects the most confident person in the image and crops it.
+    If no person is detected, returns the original image.
+    """
+    img_tensor = F.to_tensor(img).unsqueeze(0).to(device)
+    
+    with torch.no_grad():
+        predictions = detection_model(img_tensor)[0]
+    
+    # Class 1 is 'person' in COCO dataset used by Faster R-CNN
+    person_indices = (predictions['labels'] == 1).nonzero(as_tuple=True)[0]
+    
+    if len(person_indices) == 0:
+        return img  # No person found, return original
+        
+    person_boxes = predictions['boxes'][person_indices]
+    person_scores = predictions['scores'][person_indices]
+    
+    # Get the bounding box with the highest confidence score
+    best_idx = torch.argmax(person_scores)
+    best_box = person_boxes[best_idx].cpu().numpy()
+    
+    # Crop the image (box format: [x1, y1, x2, y2])
+    # Add a small margin (e.g., 5%) to ensure we don't clip too tightly
+    margin_x = (best_box[2] - best_box[0]) * 0.05
+    margin_y = (best_box[3] - best_box[1]) * 0.05
+    
+    x1 = max(0, int(best_box[0] - margin_x))
+    y1 = max(0, int(best_box[1] - margin_y))
+    x2 = min(img.width, int(best_box[2] + margin_x))
+    y2 = min(img.height, int(best_box[3] + margin_y))
+    
+    cropped_img = img.crop((x1, y1, x2, y2))
+    return cropped_img
 
 def compute_vision_metrics(image_path, text_prompt, reference_image_path=None):
     """
@@ -179,7 +222,15 @@ def compute_vision_metrics(image_path, text_prompt, reference_image_path=None):
         return metrics
 
     try:
-        image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+        # Load and crop the generated image
+        orig_img = Image.open(image_path).convert("RGB")
+        try:
+            img = crop_person(orig_img, detection_model, device)
+        except Exception as e:
+            logger.warning(f"Detection failed for {image_path}, using original: {e}")
+            img = orig_img
+            
+        image = preprocess(img).unsqueeze(0).to(device)
         text = clip.tokenize([text_prompt]).to(device)
 
         with torch.no_grad():
@@ -196,7 +247,15 @@ def compute_vision_metrics(image_path, text_prompt, reference_image_path=None):
 
             # Identity Consistency
             if reference_image_path and os.path.exists(reference_image_path):
-                ref_image = preprocess(Image.open(reference_image_path)).unsqueeze(0).to(device)
+                # Load and crop the reference image
+                orig_ref = Image.open(reference_image_path).convert("RGB")
+                try:
+                    ref_img = crop_person(orig_ref, detection_model, device)
+                except Exception as e:
+                    logger.warning(f"Detection failed for reference {reference_image_path}, using original: {e}")
+                    ref_img = orig_ref
+                
+                ref_image = preprocess(ref_img).unsqueeze(0).to(device)
                 ref_features = model.encode_image(ref_image)
                 ref_features /= ref_features.norm(dim=-1, keepdim=True)
                 

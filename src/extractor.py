@@ -21,6 +21,7 @@ class NLPExtractor:
         self.emotion_model = config["models"]["emotion_model"]
         self._emotion_pipe = None
         self.sia = SentimentIntensityAnalyzer()
+        self._wn_cache = {}
         
         # Expanded sound lemmas to catch more varied SFX verbs
         self.sound_lemmas = {
@@ -335,13 +336,18 @@ class NLPExtractor:
             if len(t.text) < 3: continue
             if t.pos_ == "NOUN" and not t.ent_type_:
                 if t.text.isdigit(): continue
-                synsets = wn.synsets(t.lemma_, pos=wn.NOUN)
-                is_phys = False
-                is_abstract = False
-                for s in synsets:
-                    hypernyms = [p.name() for p in s.lowest_common_hypernyms(wn.synset('entity.n.01'))]
-                    if "artifact.n.01" in hypernyms or "physical_entity.n.01" in hypernyms: is_phys = True
-                    if "abstraction.n.06" in hypernyms: is_abstract = True
+                if t.lemma_ in self._wn_cache:
+                    is_phys, is_abstract = self._wn_cache[t.lemma_]
+                else:
+                    synsets = wn.synsets(t.lemma_, pos=wn.NOUN)
+                    is_phys = False
+                    is_abstract = False
+                    entity_synset = wn.synset('entity.n.01')
+                    for s in synsets:
+                        hypernyms = [p.name() for p in s.lowest_common_hypernyms(entity_synset)]
+                        if "artifact.n.01" in hypernyms or "physical_entity.n.01" in hypernyms: is_phys = True
+                        if "abstraction.n.06" in hypernyms: is_abstract = True
+                    self._wn_cache[t.lemma_] = (is_phys, is_abstract)
                 if is_phys and not is_abstract:
                     entities.append({"name": t.text.lower(), "type": "prop", "role": "background"})
 

@@ -1,12 +1,12 @@
 # MAVIS Pipeline Evaluation Report
 
 ## Vision Pipeline (SSD-1B / SDXL)
-- **Mean CLIPScore (Text-Image Alignment):** 25.61
-  - vs SSD-1B Baseline: 30.2 (Delta: -4.59)
-  - vs SDXL Base Baseline: 32.0 (Delta: -6.39)
-  - vs DALL-E 2: 31.5 (Delta: -5.89)
+- **Mean CLIPScore (Text-Image Alignment):** 24.09
+  - vs SSD-1B Baseline: 30.2 (Delta: -6.11)
+  - vs SDXL Base Baseline: 32.0 (Delta: -7.91)
+  - vs DALL-E 2: 31.5 (Delta: -7.41)
 
-- **Mean Identity Consistency:** 39.36
+- **Mean Identity Consistency:** 39.76
   - Note: Values > 75 usually indicate recognizable identity preservation.
 
 ## Audio Pipeline (TTS) - Generalized Evaluation
