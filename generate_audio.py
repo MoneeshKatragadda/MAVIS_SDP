@@ -122,11 +122,12 @@ class CastingDirector:
             "and consistent pronunciation."
         )
 
-        # -------- 4–5 SECOND REFERENCE TEXT --------
-        # ~12–14 words ideal for Parler stability
+        # -------- 5-8 SECOND REFERENCE TEXT --------
+        # ~20-30 words ideal for generating ~5 seconds of audio for StyleTTS2 extraction
         ref_text = (
-            "This is my voice reference. "
-            "I speak clearly, naturally, and steadily."
+            "This is my new master voice reference. By speaking a slightly "
+            "longer and more varied sentence, I can ensure the cloning model "
+            "captures the full nuance, prosody, and natural cadence of my voice."
         )
 
         # -------- TOKENIZATION --------
@@ -169,79 +170,172 @@ class CastingDirector:
         sf.write(filepath, audio, self.model.config.sampling_rate)
         logger.info(f"    > Cast {character_name} [4-5s Clean Master]")
 
-
     def unload(self):
         if hasattr(self, 'model'): del self.model
         if hasattr(self, 'tokenizer'): del self.tokenizer
         flush_memory()
 
-# --- PHASE 2: PRODUCTION (XTTS) ---
+# --- PHASE 2: PRODUCTION (StyleTTS 2) ---
 class AudioProducer:
     def __init__(self):
         self.model = None
-    
-    def load(self):
-        logger.info("  > [Phase 2] Loading XTTS...")
-        from TTS.api import TTS
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
 
-    def generate_line(self, text, speaker_name, emotion_label, output_path):
+    def load(self):
+        logger.info("  > [Phase 2] Loading StyleTTS 2...")
+        try:
+            from styletts2 import tts
+            self.model = tts.StyleTTS2()
+        except Exception as e:
+            logger.error(f"Failed to load StyleTTS2: {e}")
+
+    def generate_line(self, text, speaker_name, emotion_data, output_path):
         ref_path = os.path.join(VOICES_DIR, f"{speaker_name}_master.wav")
-        if not os.path.exists(ref_path): 
-            ref_path = os.path.join(VOICES_DIR, "Narrator_master.wav")
-        
+
         if not os.path.exists(ref_path):
-            logger.error(f"Missing Master Audio for {speaker_name}. Skipping.")
+            ref_path = os.path.join(VOICES_DIR, "Narrator_master.wav")
+
+        if not os.path.exists(ref_path):
             return
 
-        # --- TEXT NORMALIZATION & PARAMETER TUNING ---
-        speed = 0.9
         text_processed = text.strip()
-        emotion = emotion_label.lower() if emotion_label else "neutral"
 
-        # 1. Expand Numbers (Fixes "4th Street" -> "Fourth Street")
         replacements = {
-            "4th": "Fourth", "1st": "First", "2nd": "Second", "3rd": "Third",
-            "5th": "Fifth", "6th": "Sixth", "7th": "Seventh", "8th": "Eighth"
+            "4th": "Fourth",
+            "1st": "First",
+            "2nd": "Second",
+            "3rd": "Third",
+            "5th": "Fifth",
+            "6th": "Sixth",
+            "7th": "Seventh",
+            "8th": "Eighth"
         }
+
         for k, v in replacements.items():
             text_processed = text_processed.replace(k, v)
 
-        # 2. Emotion Logic (Conservative Speed)
-        if emotion in ["anger", "fury", "annoyance"]:
-            speed = 0.98 # Slightly faster, but safe
-            # Do NOT uppercase entire text. Just ensure exclamation.
-            if not text_processed.endswith(("!", "?")): text_processed += "!" 
-        elif emotion in ["fear", "nervous", "suspense"]:
-            speed = 0.95
-            text_processed = text_processed.replace(", ", "... ")
-        elif emotion in ["sadness", "grief", "whisper"]:
-            speed = 0.90
-            text_processed = text_processed.lower()
-
-        # 3. Ensure proper ending punctuation (DO NOT PAD SHORT TEXT)
-        if not text_processed.endswith((".", "!", "?", "...")):
+        if text_processed[-1].isalnum():
             text_processed += "."
-            
+
+        emotion = "neutral"
+        
+        if isinstance(emotion_data, dict):
+            emotion = emotion_data.get("label", "neutral").lower()
+
+        alpha = 0.3
+        beta = 0.7
+        embedding_scale = 1.0
+        diffusion_steps = 25
+
+        if emotion in ["anger", "annoyance", "fury"]:
+            beta += 0.1
+        elif emotion in ["fear", "nervous", "suspense"]:
+            beta += 0.05
+        elif emotion in ["sadness", "grief"]:
+            beta -= 0.1
+        elif emotion in ["desperate"]:
+            beta += 0.05
+        elif emotion in ["whisper"]:
+            beta -= 0.15
+
+        word_count = len(text_processed.split())
+        if word_count <= 3:
+            # Short inputs need MORE denoising steps, not fewer
+            diffusion_steps = 30
+
+        beta = max(0.5, min(0.9, beta))
+
+        SAMPLE_RATE = 24000
+        SILENCE_LONG  = int(0.18 * SAMPLE_RATE)
+        SILENCE_SHORT = int(0.08 * SAMPLE_RATE)
+
+        def split_sentences(txt):
+            import re
+            parts = re.split(r'(?<=[.!?])\s+', txt.strip())
+            return [p.strip() for p in parts if p.strip()]
+
+        def trim_silence(audio_arr, threshold=0.005):
+            indices = np.where(np.abs(audio_arr) > threshold)[0]
+            if len(indices) == 0:
+                return audio_arr
+            return audio_arr[indices[0]:indices[-1] + 1]
+
+        def noise_gate(audio_arr, frame_ms=20, gate_threshold=0.015):
+            """Zero out frames whose RMS energy falls below gate_threshold.
+            Kills post-word diffusion noise on very short utterances."""
+            frame_len = int(SAMPLE_RATE * frame_ms / 1000)
+            out = audio_arr.copy()
+            for start in range(0, len(out), frame_len):
+                chunk = out[start:start + frame_len]
+                rms = np.sqrt(np.mean(chunk ** 2))
+                if rms < gate_threshold:
+                    out[start:start + frame_len] = 0.0
+            return out
+
+        def fade_edges(audio_arr, fade_samples=400):
+            if len(audio_arr) < fade_samples * 2:
+                return audio_arr
+            fade_in  = np.linspace(0, 1, fade_samples)
+            fade_out = np.linspace(1, 0, fade_samples)
+            audio_arr[:fade_samples]  *= fade_in
+            audio_arr[-fade_samples:] *= fade_out
+            return audio_arr
+
         try:
-            # CRITICAL: Optimized for ACCURACY (Low WER) over naturalness
-            # Short text needs special handling - disable splitting to prevent hallucinations
-            is_short_text = len(text_processed) < 30
+            sentences = split_sentences(text_processed)
+            segments = []
+
+            for i, sent in enumerate(sentences):
+                if not sent[-1] in ".!?":
+                    sent += "."
+
+                seg = self.model.inference(
+                    sent,
+                    target_voice_path=ref_path,
+                    alpha=alpha,
+                    beta=beta,
+                    diffusion_steps=diffusion_steps,
+                    embedding_scale=embedding_scale
+                )
+                
+                seg = np.array(seg, dtype=np.float32).squeeze().flatten()
+
+                # --- Duration clamp ---
+                # StyleTTS2 often generates a long noise tail after short words.
+                # Clamp to a generous but sane max: ~0.7s per word + 0.5s buffer.
+                sent_words = len(sent.split())
+                max_samples = int((sent_words * 0.7 + 0.5) * SAMPLE_RATE)
+                if len(seg) > max_samples:
+                    seg = seg[:max_samples]
+
+                # --- Adaptive noise gate ---
+                gate_thresh = 0.04 if sent_words <= 2 else 0.015
+                seg = trim_silence(seg)
+                seg = noise_gate(seg, gate_threshold=gate_thresh)
+                seg = trim_silence(seg)   # re-trim after gate
+                seg = fade_edges(seg)
+                segments.append(seg)
+
+                if i < len(sentences) - 1:
+                    ending_char = sent[-1]
+                    if ending_char in ".!?":
+                        segments.append(np.zeros(SILENCE_LONG, dtype=np.float32))
+                    else:
+                        segments.append(np.zeros(SILENCE_SHORT, dtype=np.float32))
+
+            if not segments:
+                return
+
+            final_audio = np.concatenate(segments)
+            final_audio = np.nan_to_num(final_audio, nan=0.0, posinf=1.0, neginf=-1.0)
             
-            self.model.tts_to_file(
-                text=text_processed,
-                file_path=output_path,
-                speaker_wav=ref_path,
-                language="en",
-                speed=speed,
-                split_sentences=False,        # DISABLED: Prevents hallucinations
-                temperature=0.3,              # Very low = maximum fidelity to text
-                repetition_penalty=10.0,      # Maximum anti-stutter/hallucination
-                length_penalty=1.0 if is_short_text else 1.2  # Don't encourage extra words for short text
-            )
+            peak = np.max(np.abs(final_audio))
+            if peak > 0:
+                final_audio = (final_audio / peak) * 0.95
+
+            sf.write(output_path, final_audio, SAMPLE_RATE)
+
         except Exception as e:
-            logger.error(f"XTTS Error {output_path}: {e}")
+            logger.error(f"StyleTTS2 Error {output_path}: {e}")
 
 # --- PHASE 3: SCORING (MusicGen) ---
 class MusicComposer:
@@ -261,7 +355,7 @@ class MusicComposer:
             return
             
         prompt_map = {
-            "Rainy Noir Ambience": "Rain drops, thunder, distant jazz saxophone.",
+            "Rainy Noir Ambience": "Rain drops, thunder",
             "Dark Suspense Drone": "Dark ambient drone, low synth, cinematic thriller.",
             "Tense Industrial Pulse": "Industrial rhythmic pulse, metallic, tense.",
             "Melancholic Saxophone": "Slow sad saxophone solo, noir jazz, reverb.",
@@ -272,8 +366,9 @@ class MusicComposer:
         base_prompt = prompt_map.get(style, f"A {style} music track, cinematic, high quality.")
         
         inputs = self.processor(text=[base_prompt], padding=True, return_tensors="pt").to(self.device)
-        duration = min(duration, 30.0) 
-        max_tokens = int(duration * 50) + 10
+        # Cap at 15s — movie.py loops BGM to fill longer scenes anyway
+        gen_dur = min(duration, 15.0)
+        max_tokens = int(gen_dur * 30) + 10  # ~30 tokens/sec is a safe budget for musicgen-small
 
         with torch.no_grad():
             audio_values = self.model.generate(**inputs, max_new_tokens=max_tokens, guidance_scale=3.0)
@@ -288,38 +383,39 @@ class MusicComposer:
         del self.processor
         flush_memory()
 
-# --- PHASE 4: FOLEY (MusicGen Small) ---
+# --- PHASE 4: FOLEY (AudioLDM) ---
 class FoleyArtist:
     def __init__(self):
-        self.model = None
-        self.processor = None
+        self.pipeline = None
         self.device = "cpu" if FORCE_CPU_CASTING else ("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self):
-        logger.info(f"  > [Phase 4] Loading SFX Model on {self.device}...")
-        from transformers import AutoProcessor, MusicgenForConditionalGeneration
-        self.processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
-        self.model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small").to(self.device)
+        logger.info(f"  > [Phase 4] Loading SFX Model (AudioLDM) on {self.device}...")
+        from diffusers import AudioLDMPipeline
+        dtype = torch.float16 if self.device == "cuda" else torch.float32
+        self.pipeline = AudioLDMPipeline.from_pretrained("cvssp/audioldm-s-full-v2", torch_dtype=dtype)
+        self.pipeline = self.pipeline.to(self.device)
 
     def generate_sfx(self, description, duration, output_path):
         if not description or description.lower() == "none": return
         
         prompt = f"Sound effect of {description}, realistic, high fidelity, no music."
-        duration = min(duration, 2.0) 
-        max_tokens = int(duration * 50) + 5
+        audio_length_in_s = max(min(duration, 10.0), 1.0) # AudioLDM handles 1 to 10s easily
 
-        inputs = self.processor(text=[prompt], padding=True, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            audio_values = self.model.generate(**inputs, max_new_tokens=max_tokens, guidance_scale=3.5)
+            audio = self.pipeline(
+                prompt,
+                num_inference_steps=20,
+                audio_length_in_s=audio_length_in_s,
+                guidance_scale=2.5
+            ).audios[0]
 
-        sampling_rate = self.model.config.audio_encoder.sampling_rate
-        audio_data = audio_values[0, 0].cpu().numpy()
-        sf.write(output_path, audio_data, sampling_rate)
-        logger.info(f"    > Created SFX '{description}'")
+        sampling_rate = 16000 # AudioLDM produces 16kHz
+        sf.write(output_path, audio, sampling_rate)
+        logger.info(f"    > Created SFX '{description}' ({audio_length_in_s:.1f}s)")
 
     def unload(self):
-        del self.model
-        del self.processor
+        del self.pipeline
         flush_memory()
 
 def generate_audio(events_path="output/events.json"):
@@ -371,7 +467,7 @@ def generate_audio(events_path="output/events.json"):
             if beat["type"] not in ["dialogue", "narration"]: continue
             beat_id = beat.get("sub_scene_id")
             text = beat.get("text")
-            emotion = beat.get("emotion", {}).get("label", "neutral")
+            emotion_data = beat.get("emotion", {})
             speaker = beat.get("speaker", "Narrator")
             if beat["type"] == "narration": speaker = "Narrator"
 
@@ -379,7 +475,7 @@ def generate_audio(events_path="output/events.json"):
             if SKIP_EXISTING and os.path.exists(out_path): continue
             if os.path.exists(out_path): os.remove(out_path)
 
-            producer.generate_line(text, speaker, emotion, out_path)
+            producer.generate_line(text, speaker, emotion_data, out_path)
     
     del producer
     flush_memory()
@@ -391,17 +487,23 @@ def generate_audio(events_path="output/events.json"):
     
     bgm_registry = {} 
     for scene in data.get("timeline", []):
+        scene_dur = scene.get("meta", {}).get("duration", 10.0)
+        
         for beat in scene.get("beats", []):
             prod = beat.get("production", {})
             bgm = prod.get("bgm", {})
             style = bgm.get("style", "None")
             if style and style.lower() not in ["none", "silence"]:
                 key = style.replace(" ", "_").replace("/", "-").lower()
-                dur = beat.get("duration", 10.0)
+                
                 if key not in bgm_registry:
-                    bgm_registry[key] = {"style": style, "duration": dur}
-                else:
-                    bgm_registry[key]["duration"] = max(bgm_registry[key]["duration"], dur)
+                    # Accumulate based on distinct scene duration 
+                    bgm_registry[key] = {"style": style, "duration": 0.0, "scenes_seen": set()}
+                
+                scene_id = scene.get("id")
+                if scene_id not in bgm_registry[key]["scenes_seen"]:
+                    bgm_registry[key]["duration"] += scene_dur
+                    bgm_registry[key]["scenes_seen"].add(scene_id)
     
     bgm_dir = os.path.join(OUTPUT_DIR, "bgm")
     if not os.path.exists(bgm_dir): os.makedirs(bgm_dir)
@@ -425,15 +527,24 @@ def generate_audio(events_path="output/events.json"):
     sfx_registry = {}
     for scene in data.get("timeline", []):
         for beat in scene.get("beats", []):
+            beat_dur = beat.get("duration", 2.0)
             prod = beat.get("production", {})
             sfx_list = prod.get("sfx", [])
             for s in sfx_list:
                 name = s.get("name", "None")
                 if name and name.lower() != "none":
                     key = name.replace(" ", "_").replace("/", "-").lower()
-                    dur = 2.0 
+                    timing = s.get("timing", {})
+                    rel_start = timing.get("start", 0.0)
+                    rel_end = timing.get("end", 1.0)
+                    
+                    # Calculate true real-world duration needed
+                    actual_sfx_dur = beat_dur * max(0.1, (rel_end - rel_start))
+                    
                     if key not in sfx_registry:
-                        sfx_registry[key] = {"name": name, "duration": dur}
+                        sfx_registry[key] = {"name": name, "duration": actual_sfx_dur}
+                    else:
+                        sfx_registry[key]["duration"] = max(sfx_registry[key]["duration"], actual_sfx_dur)
 
     for key, info in tqdm(sfx_registry.items(), desc="Foley"):
         out_path = os.path.join(sfx_dir, f"{key}.wav")
