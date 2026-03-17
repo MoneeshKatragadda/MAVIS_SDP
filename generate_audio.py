@@ -103,7 +103,6 @@ class CastingDirector:
         if os.path.exists(filepath):
             return
 
-        # -------- VOICE DESCRIPTION --------
         male_desc = (
             "A male speaker with a neutral professional voice, "
             "clear articulation, steady pace, studio-quality recording."
@@ -122,53 +121,44 @@ class CastingDirector:
             "and consistent pronunciation."
         )
 
-        # -------- 5-8 SECOND REFERENCE TEXT --------
-        # ~20-30 words ideal for generating ~5 seconds of audio for StyleTTS2 extraction
         ref_text = (
             "This is my new master voice reference. By speaking a slightly "
-            "longer and more varied sentence, I can ensure the cloning model "
-            "captures the full nuance, prosody, and natural cadence of my voice."
+            "longer and more varied sentence, I can ensure the cloning model."
         )
 
-        # -------- TOKENIZATION --------
-        input_ids = self.tokenizer(full_prompt, return_tensors="pt").input_ids.to(self.device)
-        prompt_ids = self.tokenizer(ref_text, return_tensors="pt").input_ids.to(self.device)
+        inputs = self.tokenizer(full_prompt, return_tensors="pt").to(self.device)
+        prompt_inputs = self.tokenizer(ref_text, return_tensors="pt").to(self.device)
 
-        # -------- DETERMINISTIC SEED --------
         seed = int(hashlib.md5(character_name.encode()).hexdigest(), 16) % (2**31 - 1)
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
 
-        # -------- GENERATION SETTINGS --------
         with torch.no_grad():
             generation = self.model.generate(
-                input_ids=input_ids,
-                prompt_input_ids=prompt_ids,
+                input_ids=inputs.input_ids,
+                attention_mask=inputs.attention_mask,
+                prompt_input_ids=prompt_inputs.input_ids,
+                prompt_attention_mask=prompt_inputs.attention_mask,
                 do_sample=True,
-                temperature=0.4,        # Stable but natural
-                top_p=0.9,
-                repetition_penalty=1.1,
-                max_new_tokens=220,      # CRITICAL → ~4–5 sec audio
+                temperature=1.0,
+                max_new_tokens=1000,
                 pad_token_id=self.model.config.pad_token_id
             )
 
         audio = generation.cpu().float().numpy().squeeze()
 
-        # -------- CLEAN POST-PROCESSING --------
-        # Trim trailing silence/noise
         threshold = 0.003
         idx = np.where(np.abs(audio) > threshold)[0]
         if len(idx) > 0:
             audio = audio[:idx[-1] + 1]
 
-        # Peak normalization
         peak = np.max(np.abs(audio))
         if peak > 0:
             audio = audio / peak * 0.95
 
         sf.write(filepath, audio, self.model.config.sampling_rate)
-        logger.info(f"    > Cast {character_name} [4-5s Clean Master]")
+        logger.info(f"    > Cast {character_name} [Clean Master]")
 
     def unload(self):
         if hasattr(self, 'model'): del self.model
@@ -179,12 +169,64 @@ class CastingDirector:
 class AudioProducer:
     def __init__(self):
         self.model = None
+        self.emotion_cache = {}
+        self.base_vectors = {}
 
     def load(self):
         logger.info("  > [Phase 2] Loading StyleTTS 2...")
         try:
+            import torch
+            # Patch torch.load for PyTorch 2.6+ to fix StyleTTS2 unpickling errors
+            if not hasattr(torch, '_patched_for_styletts2'):
+                _original_load = torch.load
+                def _patched_load(*args, **kwargs):
+                    kwargs['weights_only'] = False
+                    return _original_load(*args, **kwargs)
+                torch.load = _patched_load
+                torch._patched_for_styletts2 = True
+
             from styletts2 import tts
             self.model = tts.StyleTTS2()
+
+            # --- Emotion Vector Caching ---
+            cache_path = os.path.join(VOICES_DIR, "emotion_cache.pt")
+            if os.path.exists(cache_path):
+                logger.info("  > Loading cached emotion vectors...")
+                self.emotion_cache = torch.load(cache_path, weights_only=False)
+            else:
+                logger.info("  > Building pure emotion vector cache from Clustered_Audio...")
+                self.emotion_cache = {}
+                clustered_dir = "Clustered_Audio"
+                if os.path.exists(clustered_dir):
+                    import glob
+                    for gender in ["female", "male"]:
+                        gender_dir = os.path.join(clustered_dir, gender)
+                        if not os.path.exists(gender_dir): continue
+                        for em_dir in os.listdir(gender_dir):
+                            em_path = os.path.join(gender_dir, em_dir)
+                            if not os.path.isdir(em_path): continue
+                            
+                            wavs = glob.glob(os.path.join(em_path, "*.wav"))
+                            if not wavs: continue
+                            
+                            vecs = []
+                            for w in wavs:
+                                try:
+                                    # compute_style returns a tensor: [1, 512]
+                                    vecs.append(self.model.compute_style(w))
+                                except Exception as e:
+                                    logger.warning(f"Could not process {w} for emotion vector: {e}")
+                            
+                            if vecs:
+                                # Stack and average across the files
+                                avg_vec = torch.mean(torch.stack(vecs), dim=0)
+                                self.emotion_cache[f"{gender}_{em_dir.lower()}"] = avg_vec
+                    
+                    if self.emotion_cache:
+                        torch.save(self.emotion_cache, cache_path)
+                        logger.info(f"  > Cached {len(self.emotion_cache)} pure emotion vectors.")
+                else:
+                    logger.warning(f"  > {clustered_dir} not found! Emotion mapping will be skipped.")
         except Exception as e:
             logger.error(f"Failed to load StyleTTS2: {e}")
 
@@ -221,6 +263,50 @@ class AudioProducer:
         if isinstance(emotion_data, dict):
             emotion = emotion_data.get("label", "neutral").lower()
 
+        # Handle aliases in clustering folders
+        if emotion == "angry": emotion = "anger"
+        if emotion == "disappointment": emotion = "dissapointment"
+
+        # --- Blend Emotion Vector ---
+        speaker_gender = "female" if "lena" in speaker_name.lower() or "woman" in speaker_name.lower() else "male"
+        
+        if speaker_name not in self.base_vectors:
+            self.base_vectors[speaker_name] = self.model.compute_style(ref_path)
+        base_vector = self.base_vectors[speaker_name]
+
+        cache_key = f"{speaker_gender}_{emotion}"
+        
+        # Determine blend ratio: Since pure emotion vectors have someone else's voice identity,
+        # we weight them lower to preserve the character's base voice.
+        identity_ratio = 0.55
+        emotion_ratio = 0.45
+        
+        # If the requested emotion is neutral (or the speaker is just the Narrator acting neutrally), 
+        # do not blend in someone else's neutral voice, as it just dilutes the identity.
+        if emotion == "neutral":
+            emotion_ratio = 0.0
+            identity_ratio = 1.0
+        
+        if emotion_ratio > 0.0 and cache_key in self.emotion_cache:
+            pure_emotion = self.emotion_cache[cache_key].to(self.model.device)
+            base_vector_dev = base_vector.to(self.model.device)
+            
+            # Ensure shape is [1, 512] for StyleTTS2 predictor batching
+            if base_vector_dev.dim() == 1:
+                base_vector_dev = base_vector_dev.unsqueeze(0)
+            if pure_emotion.dim() == 1:
+                pure_emotion = pure_emotion.unsqueeze(0)
+                
+            # Mathematical vector blending with magnitude normalization
+            ref_s = (base_vector_dev * identity_ratio) + (pure_emotion * emotion_ratio)
+            base_mag = torch.norm(base_vector_dev, p=2, dim=-1, keepdim=True)
+            ref_s_mag = torch.norm(ref_s, p=2, dim=-1, keepdim=True)
+            ref_s = (ref_s / (ref_s_mag + 1e-6)) * base_mag
+        else:
+            ref_s = base_vector.to(self.model.device)
+            if ref_s.dim() == 1:
+                ref_s = ref_s.unsqueeze(0)
+
         alpha = 0.3
         beta = 0.7
         embedding_scale = 1.0
@@ -253,15 +339,16 @@ class AudioProducer:
             parts = re.split(r'(?<=[.!?])\s+', txt.strip())
             return [p.strip() for p in parts if p.strip()]
 
-        def trim_silence(audio_arr, threshold=0.005):
+        def trim_silence(audio_arr, threshold=0.001):
             indices = np.where(np.abs(audio_arr) > threshold)[0]
             if len(indices) == 0:
                 return audio_arr
             return audio_arr[indices[0]:indices[-1] + 1]
 
-        def noise_gate(audio_arr, frame_ms=20, gate_threshold=0.015):
+        def noise_gate(audio_arr, frame_ms=10, gate_threshold=0.005):
             """Zero out frames whose RMS energy falls below gate_threshold.
-            Kills post-word diffusion noise on very short utterances."""
+            Kills post-word diffusion noise on very short utterances, but threshold must 
+            be low enough to avoid micro-glitches inside words."""
             frame_len = int(SAMPLE_RATE * frame_ms / 1000)
             out = audio_arr.copy()
             for start in range(0, len(out), frame_len):
@@ -290,7 +377,7 @@ class AudioProducer:
 
                 seg = self.model.inference(
                     sent,
-                    target_voice_path=ref_path,
+                    ref_s=ref_s,
                     alpha=alpha,
                     beta=beta,
                     diffusion_steps=diffusion_steps,
@@ -308,7 +395,8 @@ class AudioProducer:
                     seg = seg[:max_samples]
 
                 # --- Adaptive noise gate ---
-                gate_thresh = 0.04 if sent_words <= 2 else 0.015
+                # Lower gate thresholds to prevent intra-word audio dropping (glitching)
+                gate_thresh = 0.015 if sent_words <= 2 else 0.005
                 seg = trim_silence(seg)
                 seg = noise_gate(seg, gate_threshold=gate_thresh)
                 seg = trim_silence(seg)   # re-trim after gate
