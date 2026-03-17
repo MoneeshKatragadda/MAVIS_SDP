@@ -81,6 +81,25 @@ class NLPExtractor:
                 score = float(second["score"]) * 1.5 
                 if score > 0.9: score = 0.9
 
+        valid_emotions = [
+            "amusement", "anger", "annoyance", "anxious", "curious", 
+            "disgust", "fear", "joy", "neutral", "ominous", 
+            "sad", "surprise", "disappointment"
+        ]
+        
+        emotion_map = {
+            "sadness": "sad",
+            "optimism": "joy",
+            "nervousness": "anxious",
+            "approval": "neutral",
+            "realization": "surprise",
+            "curiosity": "curious"
+        }
+        
+        label = emotion_map.get(label, label)
+        if label not in valid_emotions:
+            label = "neutral"
+
         intensity = min(score, 0.99)
         return {"label": label, "intensity": round(intensity, 3)}
 

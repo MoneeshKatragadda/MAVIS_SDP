@@ -18,13 +18,11 @@ class LLMReasoner:
         self.character_visuals = {} # Store consistency profiles
         self.character_metadata = {} # Store gender and style
 
-        self.VALID_EMOTIONS = {
-            "suspicion", "paranoia", "dread", "calculating", "cynical", 
-            "defensive", "threatening", "desperate", "sarcastic", "cold",
-            "relieved", "urgent", "intimidating", "neutral", "anger",
-            "fear", "annoyance", "curiosity", "joy", "sadness", "amusement",
-            "disapproval"
-        }
+        self.VALID_EMOTIONS = [
+            "amusement", "anger", "annoyance", "anxious", "curious", 
+            "disgust", "fear", "joy", "neutral", "ominous", 
+            "sad", "surprise", "disappointment"
+        ]
 
         self.FORBIDDEN_LABELS = {
             "intensity", "emotion", "score", "value", "label", "tone", 
@@ -164,23 +162,26 @@ Response:
         return visuals
 
     def refine_dialogue_emotion(self, speaker, text, archetype, context_window, base_emotion):
-        prompt = f"""Instruction: Act as a Noir Film Director. Define the EMOTION and DELIVERY.
+        valid_list = ", ".join([e.capitalize() for e in self.VALID_EMOTIONS])
+        prompt = f"""Instruction: Act as an Expert Voice Director. Analyze the subtext to define the exact EMOTION and INTENSITY required for the actor's delivery.
 Character: {speaker} ({archetype})
 Line: "{text}"
 Context: {context_window}
 Surface Emotion: {base_emotion}
 
-Task: Choose a specific, evocative adjective for how this line is spoken.
-Examples: Sarcastic, Fearful, Angry, Hesitant, Flirtatious, Cold, Desperate, Commanding, Shaky, Breathless.
-Avoid "Neutral" if possible.
+Task: 
+1. Briefly analyze the character's true underlying emotion based on the context.
+2. Choose a specific emotion strictly from this exact list: {valid_list}. Do NOT use any other words.
+3. If no strong emotion is present, default to Neutral. Avoid overusing Annoyance.
 
-Format:
-EMOTION: [Adjective]
+Format your response exactly like this:
+ANALYSIS: [One sentence explaining the emotional subtext]
+EMOTION: [Selected Emotion]
 INTENSITY: [0.1 - 1.0]
 
 Response:
 """
-        out = self.llm(prompt, max_tokens=60, stop=["Instruction:", "Line:"], temperature=0.1)
+        out = self.llm(prompt, max_tokens=150, stop=["Instruction:", "Line:"], temperature=0.1)
         raw_text = out["choices"][0]["text"]
         
         pred_label = self._parse_key_value(raw_text, "EMOTION")
@@ -191,9 +192,13 @@ Response:
 
         if pred_label:
             clean_label = pred_label.lower().strip()
-            # Allow any reasonable word, just filter garbage
-            if clean_label not in self.FORBIDDEN_LABELS and len(clean_label) > 2:
-                final_label = clean_label
+            for ve in self.VALID_EMOTIONS:
+                if ve in clean_label:
+                    final_label = ve
+                    break
+
+        if final_label not in self.VALID_EMOTIONS:
+            final_label = "neutral"
 
         if pred_score:
             try:
@@ -205,21 +210,25 @@ Response:
         return {"label": final_label, "intensity": final_score}
 
     def analyze_narration_tone(self, text, context_window):
-        prompt = f"""Instruction: Act as a Noir Film Director. Define the ATMOSPHERE and TONE for this narration.
+        valid_emotions = [e for e in self.VALID_EMOTIONS if e != "annoyance"]
+        valid_list = ", ".join([e.capitalize() for e in valid_emotions])
+        prompt = f"""Instruction: Act as an Expert Voiceover Director. Analyze the narrative pacing and subtext to define the exact ATMOSPHERE and TONE for this narration.
 Context: {context_window}
 Narrator Line: "{text}"
 
-Task: Choose a specific, evocative adjective to describe the narration style.
-Examples: Ominous, Melancholic, Urgent, Detached, Cynical, Whispering, Harsh, Reflective, Suspenseful, Gloomy.
-Avoid "Neutral".
+Task: 
+1. Briefly analyze the underlying atmospheric subtext and tension based on the context.
+2. Choose a specific tone strictly from this exact list: {valid_list}. Do NOT use any other words.
+3. If no strong emotion or atmosphere is present, default to Neutral or Ominous depending on the scene's tension.
 
-Format:
-TONE: [Adjective]
+Format your response exactly like this:
+ANALYSIS: [One sentence explaining the atmospheric subtext]
+TONE: [Selected Tone]
 INTENSITY: [0.1 - 1.0]
 
 Response:
 """
-        out = self.llm(prompt, max_tokens=60, stop=["Instruction:", "Narrator Line:"], temperature=0.1)
+        out = self.llm(prompt, max_tokens=150, stop=["Instruction:", "Narrator Line:"], temperature=0.1)
         raw_text = out["choices"][0]["text"]
         
         tone = "neutral"
@@ -230,8 +239,13 @@ Response:
         
         if pred_tone:
             clean_tone = pred_tone.lower().strip()
-            if clean_tone not in self.FORBIDDEN_LABELS and len(clean_tone) > 2:
-                tone = clean_tone
+            for ve in valid_emotions:
+                if ve in clean_tone:
+                    tone = ve
+                    break
+                    
+        if tone not in valid_emotions:
+            tone = "neutral"
                 
         if pred_int:
              try:
