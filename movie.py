@@ -124,7 +124,7 @@ def generate_movie(events_path=EVENTS_FILE, output_file=OUTPUT_VIDEO):
             prod = beat.get("production", {})
             bgm_info = prod.get("bgm", {})
             style = bgm_info.get("style", "None")
-            vol = bgm_info.get("volume", 0.1) * 1.5  # user-requested boost
+            vol = bgm_info.get("volume", 0.1) * 0.8  # Defaulting background to 8% to prevent dialogue drowning
 
             if style and style.lower() not in ["none", "silence"]:
                 key = style.replace(" ", "_").replace("/", "-").lower()
@@ -146,7 +146,7 @@ def generate_movie(events_path=EVENTS_FILE, output_file=OUTPUT_VIDEO):
                     key = name.replace(" ", "_").replace("/", "-").lower()
                     sfx_path = os.path.join(SFX_DIR, f"{key}.wav")
                     if os.path.exists(sfx_path):
-                        sfx_clip = AudioFileClip(sfx_path).volumex(0.6)
+                        sfx_clip = AudioFileClip(sfx_path).volumex(0.2)
                         # Relative start offset (0.0–1.0) → absolute seconds
                         start_offset = 0.0
                         timing = s.get("timing", {})

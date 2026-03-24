@@ -227,7 +227,7 @@ TONE: [Selected Tone]
 INTENSITY: [0.1 - 1.0]
 
 Response:
-"""
+""" 
         out = self.llm(prompt, max_tokens=150, stop=["Instruction:", "Narrator Line:"], temperature=0.1)
         raw_text = out["choices"][0]["text"]
         
@@ -356,40 +356,34 @@ Output:"""
 
         if b_type == 'narration':
             # --- BGM LOGIC ---
-            # Map emotions to Noir BGM styles
-            noir_scores = {
-                "neutral": "Low Hum / City Ambience",
-                "ominous": "Dark Suspense Drone",
-                "fear": "Tense Industrial Pulse",
-                "desperate": "Rapid Heartbeat / High Strings",
-                "sadness": "Melancholic Saxophone & Rain",
-                "joy": "Light Jazz", # Rare in Noir
-                "anger": "Aggressive Bass Drone",
-                "approval": "Smooth Jazz",
-                "curiosity": "Mystery Piano"
-            }
+            bgm_prompt = f"""Task: Determine a 3-5 word music style description for the background score.
+Input Context: "The rain drummed on the roof. Julian sighed."
+Emotion: "sadness"
+Output: Melancholic acoustic guitar and rain
+Input Context: "{text}"
+Emotion: "{emotion_label}"
+Output:"""
             
-            # Default based on emotion
-            bgm_style = noir_scores.get(emotion_label, "Suspenseful Drone")
-            if "rain" in text.lower() or "storm" in text.lower():
-                bgm_style = "Rainy Noir Ambience"
+            out_bgm = self.llm(bgm_prompt, max_tokens=15, stop=["\n", "Input Context:"], temperature=0.7)
+            bgm_style = out_bgm["choices"][0]["text"].strip()
+            
+            if len(bgm_style) < 3 or bgm_style.lower() == "none" or "sfx:" in bgm_style.lower():
+                bgm_style = "Cinematic ambient tension" # Fallback
 
             import random
-            bgm_vol = round(random.uniform(0.35, 0.40), 2)
+            bgm_vol = round(random.uniform(0.30, 0.40), 2)
 
             # --- SFX LOGIC ---
-            # Strict few-shot prompt for Phi-2
-            prompt = f"""Task: List audible SFX.
+            # Strict few-shot prompt for Phi-2 preventing figurative sounds
+            prompt = f"""Task: List perfectly literal, audible SFX. DO NOT output metaphorical sounds (e.g. if rain is "drumming", the sound is "Rain", NOT "Drums").
 Input: "The rain drummed on the roof."
-Output: SFX: Rain, Drumming
+Output: SFX: Rain
 Input: "He smelled the coffee."
 Output: SFX: None
 Input: "He sipped the tea."
 Output: SFX: Sipping
 Input: "Fingers dancing on the screen."
 Output: SFX: Tapping
-Input: "Julian hissed."
-Output: SFX: Hissing
 Input: "{text}"
 Output:"""
             
@@ -400,11 +394,12 @@ Output:"""
             if "SFX:" in raw:
                 try:
                     raw_sfx = raw.split("SFX:")[1].split("\n")[0].strip()
-                    if raw_sfx.lower() != "none":
+                    if raw_sfx.lower() != "none" and raw_sfx.lower() != "no":
                         items = [x.strip() for x in raw_sfx.split(",")]
                         for item in items:
                             name = re.sub(r"\(.*?\)", "", item).strip()
-                            if name and name.lower() != "none":
+                            # Filter out common LLM metaphorical hallucinations
+                            if name and name.lower() not in ["none", "no sound", "drumming", "dancing"]:
                                 sfx_list.append({
                                     "name": name,
                                     "timing": {"start": 0.1, "end": 0.9}
