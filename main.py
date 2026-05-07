@@ -81,7 +81,7 @@ def run_director():
         raw = f.read()
         clean_text = raw.replace('\\', '').replace('’', "'").replace('“', '"').replace('”', '"')
         
-    scenes_text = [s.strip() for s in clean_text.split("\n\n") if s.strip()]
+    scenes_text = [s.strip() for s in re.split(r'\n+', clean_text) if s.strip()]
     
     nlp = NLPExtractor(cfg)
     nlp.load_emotion_model()
@@ -101,10 +101,63 @@ def run_director():
     timeline = []
     global_cursor = 0.0
     global_assets = {"locations": set(), "props": set()}
-    last_location = "a dimly lit noir setting"
     total_beats_count = 0
 
-    context_buffer = deque(maxlen=3) 
+    context_buffer = deque(maxlen=3)
+
+    # ── Pre-scan: build ordered location-transition map ───────────────────
+    # Walk every scene text ONCE with spaCy to discover when the location
+    # changes.  Result: a list of (scene_index, location_phrase) pairs in
+    # story order.  During the main loop we only update last_location when
+    # a new entry exists for that scene index.
+    #
+    # This means:
+    #  - Scene 1 sets the initial background from whatever location is
+    #    mentioned first.
+    #  - Every subsequent scene INHERITS the previous background unless
+    #    spaCy detects a new location entity in that specific scene text.
+    #  - No location names are ever hardcoded.
+    location_transitions = {}   # {scene_index: location_phrase}
+    seen_locations = []         # ordered so we can detect "new" vs repeat
+
+    for scan_idx, scan_text in enumerate(scenes_text, 1):
+        scan_entities = nlp.extract_scene_entities(scan_text, characters)
+        loc_names = [e['name'] for e in scan_entities if e['type'] == 'location']
+        if loc_names:
+            # Take the first location mentioned in this scene.
+            loc_name = loc_names[0]
+            # Build a cinematic description:
+            # If the location name appears in the scene text, grab up to
+            # 6 words of surrounding context to make it descriptive.
+            ctx_match = re.search(
+                rf'([\w ,]+)?\b{re.escape(loc_name)}\b([\w ,]*){{0,20}}',
+                scan_text, re.IGNORECASE
+            )
+            if ctx_match:
+                surrounding = ctx_match.group(0).strip().strip(',').strip()
+                loc_phrase = surrounding if len(surrounding) > len(loc_name) else loc_name
+            else:
+                loc_phrase = loc_name
+            # Only register as a transition if it differs from the last seen
+            if not seen_locations or seen_locations[-1].lower() != loc_phrase.lower():
+                location_transitions[scan_idx] = loc_phrase
+                seen_locations.append(loc_phrase)
+
+    # Seed last_location from the very first detected location, or derive a
+    # sensible fallback from the opening lines of the story (no hardcoding).
+    if location_transitions:
+        # Use the first detected location as the opening background.
+        first_loc_idx = min(location_transitions.keys())
+        last_location = location_transitions[first_loc_idx]
+        # Remove it so the loop doesn't re-apply it as a "transition".
+        del location_transitions[first_loc_idx]
+    else:
+        # No explicit location found — use LLM to analyze the background
+        last_location = llm.analyze_story_background(clean_text)
+
+    logger.info(f"Opening background: '{last_location}'")
+    if location_transitions:
+        logger.info(f"Location transitions detected at scenes: {list(location_transitions.keys())}")
 
     for i, s_text in enumerate(scenes_text, 1):
         logger.info(f"--- Processing Scene {i} ---")
@@ -215,9 +268,11 @@ def run_director():
         
         timeline.append(event)
         global_cursor += scene_duration
-        
-        # locs = [e['name'] for e in entities if e['type'] == 'location']
-        # if locs: last_location = locs[0]
+
+        # Update background if this scene introduces a new location.
+        if i in location_transitions:
+            last_location = location_transitions[i]
+            logger.info(f"Scene {i}: background changed to '{last_location}'")
 
     logger.info("Generating Global Registry...")
     registry = llm.generate_rich_registry(characters, cast_profiles)

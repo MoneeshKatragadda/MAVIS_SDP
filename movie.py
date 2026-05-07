@@ -22,7 +22,7 @@ def _load_font(path, size):
         return ImageFont.load_default()
 
 _FONT_SUBTITLE = _load_font(_FONT_PATH_BOLD,   14)
-_FONT_SPEAKER  = _load_font(_FONT_PATH_NORMAL, 16)
+_FONT_SPEAKER  = _load_font(_FONT_PATH_NORMAL, 20)
 
 def _draw_subtitles(frame, text, wrap_width=55):
     """Burn wrapped subtitle text onto the bottom of a numpy RGB frame."""

@@ -391,6 +391,10 @@ class NLPExtractor:
                     if t.dep_ not in {"poss", "compound"}:
                          if len(clean_name) > 2 and clean_name[0].isupper():
                             candidates.add(clean_name)
+            elif t.dep_ in active_deps and len(t.text) > 2 and t.text[0].isupper() and t.text.isalpha():
+                clean_name = t.text.strip().strip('"').strip("'")
+                if clean_name not in BLOCKLIST and t.ent_type_ not in {"ORG", "GPE", "LOC", "FAC", "PRODUCT", "DATE", "TIME", "CARDINAL", "ORDINAL"}:
+                    candidates.add(clean_name)
         return sorted(list(candidates))
 
     def build_audio_prompt(self, beat, emo):
